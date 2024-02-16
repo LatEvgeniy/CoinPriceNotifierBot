@@ -83,15 +83,14 @@ func (b *BotApi) runUserGoroutine(userChatId int64) {
 }
 
 func (b *BotApi) executeDefaultMsgText(msg *tgbotapi.Message) {
-	userConfig, exists := b.usersConfig[msg.Chat.ID]
-
-	if exists {
+	if userConfig, exists := b.usersConfig[msg.Chat.ID]; exists {
 		switch userConfig.ChoosenCommand {
 		case SET_COIN_PRICE_COMMAND_NAME:
 			b.executeSetCoinPriceValue(msg)
 			return
 		}
 	}
+
 	b.api.Send(tgbotapi.NewMessage(msg.Chat.ID, "Unknown command: "+strings.ReplaceAll(msg.Text, "\n", " ")))
 }
 
@@ -114,13 +113,9 @@ func (b *BotApi) executeOnCommand(msg *tgbotapi.Message) {
 }
 
 func (b *BotApi) executeOffCommand(msg *tgbotapi.Message) {
-	userConfig, exists := b.usersConfig[msg.Chat.ID]
-	if exists && userConfig.HasActiveSession {
-		stopCh := userConfig.GoroutineCh
-		stopCh <- struct{}{}
-
-		userConfig.HasActiveSession = false
-		b.usersConfig[msg.Chat.ID] = userConfig
+	if userConfig, exists := b.usersConfig[msg.Chat.ID]; exists && userConfig.HasActiveSession {
+		b.usersConfig[msg.Chat.ID].GoroutineCh <- struct{}{}
+		b.usersConfig[msg.Chat.ID].HasActiveSession = false
 
 		b.api.Send(tgbotapi.NewMessage(msg.Chat.ID, "Successfully stop session"))
 		return
@@ -129,9 +124,8 @@ func (b *BotApi) executeOffCommand(msg *tgbotapi.Message) {
 }
 
 func (b *BotApi) executeSetCoinPriceCommand(msg *tgbotapi.Message) {
-	userConfig, exists := b.usersConfig[msg.Chat.ID]
-	if exists && userConfig.HasActiveSession {
-		userConfig.ChoosenCommand = SET_COIN_PRICE_COMMAND_NAME
+	if userConfig, exists := b.usersConfig[msg.Chat.ID]; exists && userConfig.HasActiveSession {
+		b.usersConfig[msg.Chat.ID].ChoosenCommand = SET_COIN_PRICE_COMMAND_NAME
 
 		b.api.Send(tgbotapi.NewMessage(msg.Chat.ID, "Send float price value"))
 		return
@@ -140,19 +134,16 @@ func (b *BotApi) executeSetCoinPriceCommand(msg *tgbotapi.Message) {
 }
 
 func (b *BotApi) executeSetCoinPriceValue(msg *tgbotapi.Message) {
-	userConfig, exists := b.usersConfig[msg.Chat.ID]
-	if exists && userConfig.HasActiveSession {
+	if userConfig, exists := b.usersConfig[msg.Chat.ID]; exists && userConfig.HasActiveSession {
 		floatPrice, err := strconv.ParseFloat(msg.Text, 64)
 		if err != nil {
 			b.api.Send(tgbotapi.NewMessage(msg.Chat.ID, fmt.Sprintf("Cannot parse %s to float", msg.Text)))
-			userConfig.ChoosenCommand = ""
+			b.usersConfig[msg.Chat.ID].ChoosenCommand = ""
 			return
 		}
-		userConfig.CoinPrice = floatPrice
-		userConfig.ChoosenCommand = ""
-
-		stopCh := userConfig.GoroutineCh
-		stopCh <- struct{}{}
+		b.usersConfig[msg.Chat.ID].CoinPrice = floatPrice
+		b.usersConfig[msg.Chat.ID].ChoosenCommand = ""
+		b.usersConfig[msg.Chat.ID].GoroutineCh <- struct{}{}
 
 		go b.runUserGoroutine(msg.Chat.ID)
 		b.api.Send(tgbotapi.NewMessage(msg.Chat.ID, fmt.Sprintf("Successfully changed coin price to: %f", floatPrice)))
