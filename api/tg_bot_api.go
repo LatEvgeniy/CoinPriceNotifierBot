@@ -1,4 +1,4 @@
-package botapi
+package api
 
 import (
 	"CoinPriceNotifierBot/config"

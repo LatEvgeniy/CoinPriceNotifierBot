@@ -1,7 +1,7 @@
 package main
 
 import (
-	botapi "CoinPriceNotifierBot/bot_api"
+	botapi "CoinPriceNotifierBot/api"
 	"os"
 
 	"github.com/sirupsen/logrus"
