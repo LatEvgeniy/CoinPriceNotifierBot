@@ -1,7 +1,6 @@
 package main
 
 import (
-	"CoinPriceNotifierBot/api"
 	botapi "CoinPriceNotifierBot/api"
 	"os"
 
@@ -16,7 +15,7 @@ const (
 func main() {
 	logrus.SetLevel(logrus.DebugLevel)
 
-	cryptoCurrencyApi := api.NewCryptoCurrencyApi(GET_PRICE_API_URL)
+	cryptoCurrencyApi := botapi.NewCryptoCurrencyApi(GET_PRICE_API_URL)
 
 	botToken, err := getBotTokenFromFile(FILE_NAME_WITH_BOT_TOKEN)
 	if err != nil {
