@@ -3,7 +3,6 @@ package api
 import (
 	model "CoinPriceNotifierBot/model"
 	"encoding/json"
-	"log"
 
 	"github.com/shopspring/decimal"
 	"github.com/sirupsen/logrus"
@@ -33,13 +32,13 @@ func (c *CryptoCurrencyApi) getCurrencyPrice(currencyName string, currencyPriceS
 
 	var coinCupModel model.CoinCupModel
 	if err := json.Unmarshal([]byte(resp.Body()), &coinCupModel); err != nil {
-		log.Fatal(err)
+		logrus.Fatal(err)
 		return "", err
 	}
 
 	decimalPrice, err := decimal.NewFromString(coinCupModel.Data.PriceUsd)
 	if err != nil {
-		log.Fatal(err)
+		logrus.Fatal(err)
 		return "", err
 	}
 	roundedPrice := decimalPrice.Round(int32(currencyPriceScale))
