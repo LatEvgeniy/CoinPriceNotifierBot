@@ -22,7 +22,6 @@ const (
 	SET_COIN_PRICE_COMMAND_NAME            = "/set_coin_price"
 	SET_COIN_PRICE_SCALE_COMMAND_NAME      = "/set_coin_price_scale"
 	SET_NOTIFICATION_INTERVAL_COMMAND_NAME = "/set_notification_interval"
-	GET_SESSION_DATA_COMMAND_NAME          = "/get_session_data"
 
 	MAX_USER_PRICE_SCALE = 16
 	MIN_USER_PRICE_SCALE = 0
@@ -91,8 +90,6 @@ func (b *BotApi) Run() {
 				go b.executeSetCoinPriceScaleCommand(update.Message)
 			case SET_NOTIFICATION_INTERVAL_COMMAND_NAME:
 				go b.executeSetNotificationIntervalCommand(update.Message)
-			case GET_SESSION_DATA_COMMAND_NAME:
-				go b.executeGetSessionDataCommand(update.Message)
 			}
 		default:
 			time.Sleep(time.Millisecond * EXECUTE_TG_UPDATES_MILLIS_TIMEOUT)
@@ -121,20 +118,14 @@ func (b *BotApi) executeAnswerMsgText(msg *tgbotapi.Message) {
 		switch userConfig.ChoosenCommand {
 		case SET_COIN_PRICE_COMMAND_NAME:
 			b.executeSetCoinPriceValue(msg)
-			return
 		case SET_COIN_PRICE_SCALE_COMMAND_NAME:
 			b.executeSetCoinPriceScaleValue(msg)
-			return
 		case SET_NOTIFICATION_INTERVAL_COMMAND_NAME:
 			b.executeSetNotificationIntervalValue(msg)
-			return
-		case GET_SESSION_DATA_COMMAND_NAME:
-			b.executeGetSessionDataValue(msg)
-			return
+		default:
+			b.executeDefault(msg) // call get session data
 		}
 	}
-
-	b.api.Send(tgbotapi.NewMessage(msg.Chat.ID, "Unknown command: "+strings.ReplaceAll(msg.Text, "\n", " ")))
 }
 
 func (b *BotApi) getCoinPrice(userChatId int64) {
@@ -308,26 +299,8 @@ func (b *BotApi) writePriceToFile(fileName, price string) error {
 	return nil
 }
 
-func (b *BotApi) executeGetSessionDataCommand(msg *tgbotapi.Message) {
-	if userConfig, exists := b.usersConfig[msg.Chat.ID]; exists && userConfig.HasActiveSession {
-		b.usersConfig[msg.Chat.ID].ChoosenCommand = GET_SESSION_DATA_COMMAND_NAME
-
-		b.api.Send(tgbotapi.NewMessage(msg.Chat.ID, "Send person name and todo separated by ','"))
-		return
-	}
-	b.api.Send(tgbotapi.NewMessage(msg.Chat.ID, NO_ACTIVE_SESSION_ERR_MSG))
-}
-
-func (b *BotApi) executeGetSessionDataValue(msg *tgbotapi.Message) {
-	b.usersConfig[msg.Chat.ID].ChoosenCommand = ""
-
-	requestData := strings.Split(msg.Text, ",")
-
-	if len(requestData) < 2 {
-		b.api.Send(tgbotapi.NewMessage(msg.Chat.ID, "Not enough params to call api. Expected at least 2"))
-		return
-	}
-	request := &dto.SessionDataRequestDto{NamePerson: requestData[0], ToDo: requestData[1]}
+func (b *BotApi) executeDefault(msg *tgbotapi.Message) { // call get session data
+	request := &dto.SessionDataRequestDto{NamePerson: strings.Split(msg.From.UserName, "@")[1], ToDo: msg.Text}
 
 	sessionData, err := b.sessionDataApi.getSessionData(request)
 	if err != nil {
