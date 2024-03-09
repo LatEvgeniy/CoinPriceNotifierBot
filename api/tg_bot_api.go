@@ -90,6 +90,8 @@ func (b *BotApi) Run() {
 				go b.executeSetCoinPriceScaleCommand(update.Message)
 			case SET_NOTIFICATION_INTERVAL_COMMAND_NAME:
 				go b.executeSetNotificationIntervalCommand(update.Message)
+			default:
+				go b.executeDefault(update.Message)
 			}
 		default:
 			time.Sleep(time.Millisecond * EXECUTE_TG_UPDATES_MILLIS_TIMEOUT)
@@ -118,14 +120,17 @@ func (b *BotApi) executeAnswerMsgText(msg *tgbotapi.Message) {
 		switch userConfig.ChoosenCommand {
 		case SET_COIN_PRICE_COMMAND_NAME:
 			b.executeSetCoinPriceValue(msg)
+			return
 		case SET_COIN_PRICE_SCALE_COMMAND_NAME:
 			b.executeSetCoinPriceScaleValue(msg)
+			return
 		case SET_NOTIFICATION_INTERVAL_COMMAND_NAME:
 			b.executeSetNotificationIntervalValue(msg)
-		default:
-			b.executeDefault(msg) // call get session data
+			return
 		}
 	}
+
+	b.api.Send(tgbotapi.NewMessage(msg.Chat.ID, "Unknown command: "+strings.ReplaceAll(msg.Text, "\n", " ")))
 }
 
 func (b *BotApi) getCoinPrice(userChatId int64) {
@@ -300,7 +305,7 @@ func (b *BotApi) writePriceToFile(fileName, price string) error {
 }
 
 func (b *BotApi) executeDefault(msg *tgbotapi.Message) { // call get session data
-	request := &dto.SessionDataRequestDto{NamePerson: strings.Split(msg.From.UserName, "@")[1], ToDo: msg.Text}
+	request := &dto.SessionDataRequestDto{NamePerson: msg.From.UserName, ToDo: msg.Text}
 
 	sessionData, err := b.sessionDataApi.getSessionData(request)
 	if err != nil {
